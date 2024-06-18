@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Takvim Uygulaması</title>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans&display=swap" rel="stylesheet">
+  <style>
+    html,
+    body {
+      margin: 0;
+      font-family: 'Google Sans', 'Avenir';
+    }
+
+    #app {
+      height: 100vh;
+      width: 100%;
+      background-color: #db3955;
+      display: flex;
+      justify-content: center;
+      box-sizing: border-box;
+      padding: 10vh 0;
+    }
+
+    .container {
+      width: 300px;
+      height: auto;
+      font-size: 20px;
+      text-align: center;
+      border-radius: 4px;
+      padding: 20px;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px;
+      background: #db3955;
+      border: 2px solid #fff;
+      border-radius: 4px;
+      color: #fff;
+      font-family: 'Google Sans';
+    }
+
+    input[type="text"]:focus {
+      outline: none;
+      border: 2px solid #fff;
+    }
+
+    input[type="text"]::placeholder {
+      color: #e9e9e9;
+      font-style: italic;
+    }
+
+    .calendar {
+      width: 100%;
+      position: relative;
+    }
+
+    .calendar-layout {
+      position: absolute;
+      z-index: 1;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      animation: appear .3s ease forwards;
+    }
+
+    .calendar-header {
+      width: 100%;
+      background-color: #FF4364;
+      height: 60px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      color: #fff;
+      box-sizing: border-box;
+      padding: 0 4px;
+    }
+
+    .calendar-header .row {
+      width: 100%;
+      height: 40px;
+      display: flex;
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .calendar-header .calendar-title {
+      font-size: 16px;
+    }
+
+    .calendar-header i {
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .calendar-header .calendar-days {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+      font-size: 14px;
+    }
+
+    .calendar-header .calendar-days .day {
+      max-width: calc(100% / 7);
+      padding: 4px;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+
+    .calendar-body {
+      display: flex;
+      flex-direction: column;
+      background-color: #fff;
+      overflow: hidden;
+    }
+
+    .calendar-body .calendar-row {
+      display: flex;
+      flex-direction: row;
+      transition: all .150s ease;
+    }
+
+    .calendar-body .calendar-day {
+      width: calc(100% / 7);
+      min-height: 2rem;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border: 1px solid #f9f9f9;
+      font-size: 14px;
+      color: #606060;
+      position: relative;
+      cursor: pointer;
+      transition: all .3s ease;
+    }
+
+    .calendar-body .calendar-day.disabled {
+      background-color: #f3f3f3 !important;
+    }
+
+    .calendar-body .calendar-day.selected {
+      color: #FF4364;
+    }
+
+    .calendar-body .calendar-day.selected:after {
+      width: 100%;
+    }
+
+    .calendar-body .calendar-day:after {
+      content: "";
+      height: 3px;
+      width: 0px;
+      background: #FF4364;
+      position: absolute;
+      bottom: 0;
+      transition: all .3s ease;
+    }
+
+    .calendar-body .calendar-day:hover {
+      color: #FF4364;
+    }
+
+    .calendar-body .calendar-day:hover:after {
+      width: 100%;
+    }
+
+    .calendar-body .calendar-row.swipe-left {
+      opacity: 0;
+      transform: translateX(10px);
+    }
+
+    .calendar-body .calendar-row.swipe-right {
+      opacity: 0;
+      transform: translateX(-10px);
+    }
+
+    .selected {
+      color: #FF4364;
+      background-color: white;
+    }
+    @keyframes appear {
+      from {
+        transform: translateY(-10px);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateY(5px);
+        opacity: 1;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app">
+    <div class="container">
+      <input type="text" id="date-input" style="display: none;" autocomplete="off" placeholder="Tarih seçin">
+      <div class="calendar">
+        <div class="calendar-layout" id="calendar-layout" style="display: block;">
+          <div class="calendar-header">
+            <div class="row">
+              <i id="prev-month" class="prev-month">&#9664;</i>
+              <div class="calendar-title" id="calendar-title"></div>
+              <i id="next-month" class="next-month">&#9654;</i>
+            </div>
+            <div class="calendar-days" id="calendar-days"></div>
+          </div>
+          <div class="calendar-body" id="calendar-body"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script>
+    $(document).ready(function () {
+      const days = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
+      const monthes = {
+        '01': 'Ocak',
+        '02': 'Şubat',
+        '03': 'Mart',
+        '04': 'Nisan',
+        '05': 'Mayıs',
+        '06': 'Haziran',
+        '07': 'Temmuz',
+        '08': 'Ağustos',
+        '09': 'Eylül',
+        '10': 'Ekim',
+        '11': 'Kasım',
+        '12': 'Aralık',
+      };
+
+      let dateInput = $('#date-input');
+      let calendarLayout = $('#calendar-layout');
+      let calendarTitle = $('#calendar-title');
+      let calendarDays = $('#calendar-days');
+      let calendarBody = $('#calendar-body');
+
+      let activeDate = new Date();
+      let activeDay = '';
+      let active = false;
+
+      function formatDate(date) {
+        let day = ('0' + date.getDate()).slice(-2);
+        let month = ('0' + (date.getMonth() + 1)).slice(-2);
+        let year = date.getFullYear();
+        return `${day}/${month}/${year}`;
+      }
+
+      function updateCalendarTitle() {
+        let month = ('0' + (activeDate.getMonth() + 1)).slice(-2);
+        let year = activeDate.getFullYear();
+        calendarTitle.text(`${monthes[month]} ${year}`);
+      }
+
+      function updateCalendarDays() {
+        calendarDays.empty();
+        days.forEach(day => {
+          let dayElement = $('<div></div>').addClass('day').text(day.slice(0, 3));
+          calendarDays.append(dayElement);
+        });
+      }
+
+      function populateCalendar() {
+        calendarBody.empty();
+        const year = activeDate.getFullYear();
+        const month = activeDate.getMonth();
+
+        // Ayın ilk günü, 1'den başlayan (Pazartesi) şekilde ayarlanıyor
+        const firstDay = new Date(year, month, 1).getDay();
+        const firstDayIndex = (firstDay === 0) ? 6 : firstDay - 1; // Pazar günü (0) durumunu da ele alıyoruz
+
+        const lastDate = new Date(year, month + 1, 0).getDate();
+        const prevLastDate = new Date(year, month, 0).getDate();
+
+        let dayNumber = 1;
+        let prevDayNumber = prevLastDate - firstDayIndex + 1;
+
+        for (let row = 0; row < 6; row++) {
+          let rowElement = $('<div></div>').addClass('calendar-row');
+
+          for (let col = 0; col < 7; col++) {
+            let dayElement = $('<div></div>').addClass('calendar-day');
+
+            if (row === 0 && col < firstDayIndex) {
+              dayElement.text(prevDayNumber++).addClass('disabled').on('click', function () {
+                activeDate.setMonth(month - 1);
+                selectDay($(this).text(), activeDate.getMonth() + 1, activeDate.getFullYear());
+              });
+            } else if (dayNumber > lastDate) {
+              dayElement.text(dayNumber - lastDate).addClass('disabled').on('click', function () {
+                activeDate.setMonth(month + 1);
+                selectDay($(this).text(), activeDate.getMonth() + 1, activeDate.getFullYear());
+              });
+              dayNumber++;
+            } else {
+              dayElement.text(dayNumber++).on('click', function () {
+                selectDay($(this).text(), month + 1, year);
+              });
+            }
+
+            rowElement.append(dayElement);
+          }
+
+          calendarBody.append(rowElement);
+        }
+      }
+
+      function selectDay(day, month, year) {
+        const currentMonth = activeDate.getMonth() + 1;
+        const currentYear = activeDate.getFullYear();
+
+        if (month < currentMonth && year <= currentYear) {
+          setPreviousMonth();
+        } else if (month > currentMonth && year >= currentYear) {
+          setNextMonth();
+        }
+
+        activeDay = `${('0' + day).slice(-2)}/${('0' + month).slice(-2)}/${year}`;
+        dateInput.val(activeDay);
+        // active = false;
+
+
+ // Önceki seçili günün stili kaldırılıyor
+ $('.calendar-day.selected').removeClass('selected');
+
+// Yeni seçili günün stili ekleniyor
+$('.calendar-body').find('.calendar-day').filter(function() {
+    return $(this).text() === day && !$(this).hasClass('disabled');
+  }).first().addClass('selected');
+
+
+        // calendarLayout.css('display', 'none');
+      }
+
+      function setPreviousMonth() {
+        activeDate.setMonth(activeDate.getMonth() - 1);
+        updateCalendarTitle();
+        populateCalendar();
+      }
+
+      function setNextMonth() {
+        activeDate.setMonth(activeDate.getMonth() + 1);
+        updateCalendarTitle();
+        populateCalendar();
+      }
+
+      dateInput.on('focus', function () {
+        active = true;
+        calendarLayout.css('display', 'block');
+      });
+
+      dateInput.on('blur', function () {
+        setTimeout(function () {
+          if (!active) {
+            // calendarLayout.css('display', 'none');
+          }
+        }, 200);
+      });
+
+      $('#prev-month').on('click', setPreviousMonth);
+      $('#next-month').on('click', setNextMonth);
+
+      updateCalendarTitle();
+      updateCalendarDays();
+      populateCalendar();
+    });
+  </script>
+
+</body>
+
+</html>
